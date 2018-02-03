@@ -1,6 +1,6 @@
-= Digital Humidity Temperature BLE Sensor
+# Digital Humidity Temperature BLE Sensor
 
-== Project IDE
+## Project IDE
 Project is edited in eclipse IDE Neon.3 - CDE
 
 Project is imported as Makefile project and is ARM Crosscompiled C project.
@@ -8,7 +8,7 @@ Project is imported as Makefile project and is ARM Crosscompiled C project.
 Set project Properties:
 C/C++ Build - GNU Toolchain Editor - Autotool Makefile Generator
 
-== Building
+## Building
 
 Makefile.common includes location of:
 
