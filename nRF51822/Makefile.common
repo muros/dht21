@@ -20,6 +20,9 @@ OPENOCDPATH=/usr/local
 S110_HEX_FILE=$(SDK_PATH)/components/softdevice/s110/hex/s110_nrf51_2.0.0_softdevice.hex
 #S130_HEX_FILE=$(HOME)/nordic/s130_nrf51_1.0.0_API/s130_nrf51_1.0.0_softdevice.hex
 S130_HEX_FILE=$(SDK_PATH)/components/softdevice/s130/hex/s130_nrf51_2.0.0_softdevice.hex
+#SNIFFER_HEX_FILE=$(HOME)/nrf_sniffer_2/hex/sniffer_pca10028_51296aa.hex
+#SNIFFER_HEX_FILE=$(HOME)/nrf_sniffer_2/hex/sniffer_pca10031_51296aa.hex
+SNIFFER_HEX_FILE=$(HOME)/nrf_sniffer_2/hex/sniffer_pca10040_51296aa.hex
 
 MK := mkdir
 RM := rm -rf
@@ -274,6 +277,9 @@ flash_s110: $(OUTPUT_BINARY_DIRECTORY)/$(HEX)
 
 flash_s130: $(OUTPUT_BINARY_DIRECTORY)/$(HEX)
 	$(OPENOCD) -d2 -f $(TEMPLATEROOT)/openocd.cfg -c 'init_reset halt; init; halt; nrf51 mass_erase; program $(S130_HEX_FILE) verify; program $(OUTPUT_BINARY_DIRECTORY)/$(HEX) verify; reset; exit'
+
+flash_sniffer: 
+	$(OPENOCD) -d2 -f $(TEMPLATEROOT)/openocd.cfg -c 'init_reset halt; init; halt; nrf51 mass_erase; program $(SNIFFER_HEX_FILE) verify; reset; exit'
 
 clean:
 	$(RM) $(BUILD_DIRECTORIES)

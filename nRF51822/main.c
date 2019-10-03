@@ -65,9 +65,9 @@ const uint32_t dht_pin = 5;
 #define CENTRAL_LINK_COUNT               0                                          /**< Number of central links used by the application. When changing this number remember to adjust the RAM settings*/
 #define PERIPHERAL_LINK_COUNT            1                                          /**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
 
-#define DEVICE_NAME                      "DHT21-1"                                    /**< Name of device. Will be included in the advertising data. */
-#define APP_ADV_INTERVAL                 300                                        /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
-#define APP_ADV_TIMEOUT_IN_SECONDS       180                                        /**< The advertising timeout in units of seconds. */
+#define DEVICE_NAME                      "DHT21-v2"                                 /**< Name of device. Will be included in the advertising data. */
+#define APP_ADV_INTERVAL                 300                                        /**< The advertising interval (in units of 0.625 ms. */
+#define APP_ADV_TIMEOUT_IN_SECONDS       0                                          /**< The advertising timeout in units of seconds. */
 
 #define MIN_CONN_INTERVAL                MSEC_TO_UNITS(100, UNIT_1_25_MS)           /**< Minimum acceptable connection interval (0.1 seconds). */
 #define MAX_CONN_INTERVAL                MSEC_TO_UNITS(200, UNIT_1_25_MS)           /**< Maximum acceptable connection interval (0.2 second). */
@@ -130,7 +130,7 @@ static void gap_params_init(void)
 	// to require no protection (open link)
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
 
-    // Store the device name and security mode in the SoftDevice. Our name is defined to "HelloWorld" in the beginning of this file
+    // Store the device name and security mode in the SoftDevice.
     err_code = sd_ble_gap_device_name_set(&sec_mode,
                                           (const uint8_t *)DEVICE_NAME,
                                           strlen(DEVICE_NAME));
@@ -146,13 +146,13 @@ static void gap_params_init(void)
     gap_conn_params.conn_sup_timeout  = CONN_SUP_TIMEOUT;
 
     // Set GAP Peripheral Preferred Connection Parameters
-    // The device use these prefered values when negotiating connection terms with another device
+    // The device use these preferred values when negotiating connection terms with another device
     err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
     APP_ERROR_CHECK(err_code);
 
     // Set appearance - icon displayed on client
-	//sd_ble_gap_appearance_set(0);
-	//APP_ERROR_CHECK(err_code);// Check for errors
+	sd_ble_gap_appearance_set(BLE_APPEARANCE_GENERIC_THERMOMETER);
+	APP_ERROR_CHECK(err_code);// Check for errors
 }
 
 /**@brief Function for initializing services that will be used by the application.
@@ -257,12 +257,13 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             //err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             //APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-            start_timers();
+            stop_timers();
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
-        	stop_timers();
+            start_timers();
+            nrf_gpio_pin_clear(19);
             break;
 
         default:
@@ -301,6 +302,7 @@ static void sys_evt_dispatch(uint32_t sys_evt)
 {
     pstorage_sys_event_handler(sys_evt);
     ble_advertising_on_sys_evt(sys_evt);
+    nrf_evt_signal_handler_dht(sys_evt);
 }
 
 
@@ -435,68 +437,70 @@ static void device_manager_init(bool erase_bonds)
 
 /**@brief Function for initializing the Advertising functionality.
  */
-static void advertising_init(void)
+static void advertising_init(unsigned char* xxxData)
 {
     uint32_t      err_code;
     ble_advdata_t advdata;
 
-//    ble_advdata_manuf_data_t        manuf_data; // Variable to hold manufacturer specific data
-//    uint8_t data[4];                            // Our data to adverise
-//    manuf_data.company_identifier   = 0x0059;   // Nordics company ID
-//    manuf_data.data.p_data          = data;
-//    manuf_data.data.size            = sizeof(data);
-//
-//    data[0] = nrfTemp & 0xff;
-//    data[1] = (nrfTemp >> 8);
-//    data[2] = nrfHmdt & 0xff;
-//    data[3] = (nrfHmdt >> 8);
+    ble_advdata_manuf_data_t        manuf_data; // Variable to hold manufacturer specific data
+    //uint8_t data[4];                            // Our data to adverise
+    manuf_data.company_identifier   = 0x0059;   // Nordics company ID
+    manuf_data.data.p_data          = xxxData;
+    manuf_data.data.size            = 5;
+
+//    xxxData[0] = 0xBB;
+//    xxxData[1] = 0xEE;
+//    xxxData[2] = 0xEE;
+//    xxxData[3] = 0xFF;
 
     // Build advertising data struct to pass into @ref ble_advertising_init.
     memset(&advdata, 0, sizeof(advdata));
 
     advdata.name_type               = BLE_ADVDATA_FULL_NAME;
     advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
-    //advdata.p_manuf_specific_data   = &manuf_data;
+    advdata.p_manuf_specific_data   = &manuf_data;
 
     ble_adv_modes_config_t options = {0};
-    options.ble_adv_fast_enabled  = BLE_ADV_FAST_ENABLED;
-    options.ble_adv_fast_interval = APP_ADV_INTERVAL;
-    options.ble_adv_fast_timeout  = APP_ADV_TIMEOUT_IN_SECONDS;
-
+//    options.ble_adv_fast_enabled  = BLE_ADV_FAST_ENABLED;
+//    options.ble_adv_fast_interval = APP_ADV_INTERVAL;
+//    options.ble_adv_fast_timeout  = APP_ADV_TIMEOUT_IN_SECONDS;
+    options.ble_adv_slow_enabled = BLE_ADV_SLOW_ENABLED;
+    options.ble_adv_slow_interval = APP_ADV_INTERVAL;
+    options.ble_adv_slow_timeout = APP_ADV_TIMEOUT_IN_SECONDS;
     err_code = ble_advertising_init(&advdata, NULL, &options, on_adv_evt, NULL);
     APP_ERROR_CHECK(err_code);
 }
 
-//static void advertising_update(void)
-//{
-//	uint32_t      err_code;
-//	ble_advdata_t advdata;
-//
-//	ble_advdata_manuf_data_t        manuf_data; // Variable to hold manufacturer specific data
-//	uint8_t data[4];                            // Our data to adverise
-//	manuf_data.company_identifier   = 0x0059;   // Nordics company ID
-//	manuf_data.data.p_data          = data;
-//	manuf_data.data.size            = sizeof(data);
-//
-//	data[0] = nrfTemp & 0xff;
-//	data[1] = (nrfTemp >> 8);
-//	data[2] = nrfHmdt & 0xff;
-//	data[3] = (nrfHmdt >> 8);
-//
-//	// Build advertising data struct to pass into @ref ble_advertising_init.
-//	memset(&advdata, 0, sizeof(advdata));
-//
-//	// Build advertising data struct to pass into @ref ble_advertising_init.
-//	memset(&advdata, 0, sizeof(advdata));
-//
-//	advdata.name_type               = BLE_ADVDATA_SHORT_NAME;
-//	advdata.short_name_len          = 5;
-//	advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
-//	advdata.p_manuf_specific_data   = &manuf_data;
-//
-//	err_code = ble_advdata_set(&advdata, NULL);
-//	APP_ERROR_CHECK(err_code);
-//}
+/*static void advertising_update(void)
+{
+	uint32_t      err_code;
+	ble_advdata_t advdata;
+
+	ble_advdata_manuf_data_t        manuf_data; // Variable to hold manufacturer specific data
+	uint8_t data[4];                            // Our data to adverise
+	manuf_data.company_identifier   = 0x0059;   // Nordics company ID
+	manuf_data.data.p_data          = data;
+	manuf_data.data.size            = sizeof(data);
+
+	data[0] = 0x00;
+	data[1] = 0x00;
+	data[2] = 0x00;
+	data[3] = 0x00;
+
+	// Build advertising data struct to pass into @ref ble_advertising_init.
+	memset(&advdata, 0, sizeof(advdata));
+
+	// Build advertising data struct to pass into @ref ble_advertising_init.
+	memset(&advdata, 0, sizeof(advdata));
+
+	advdata.name_type               = BLE_ADVDATA_SHORT_NAME;
+	advdata.short_name_len          = 5;
+	advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
+	advdata.p_manuf_specific_data   = &manuf_data;
+
+	err_code = ble_advdata_set(&advdata, NULL);
+	APP_ERROR_CHECK(err_code);
+}*/
 
 
 /**@brief Function for initializing buttons and leds.
@@ -540,8 +544,10 @@ int main(void)
     // Configure LED-pin as outputs and clear.
     nrf_gpio_cfg_output(19);
     nrf_gpio_pin_clear(19);
+    nrf_gpio_cfg_output(22);
+    nrf_gpio_pin_clear(22);
 
-    dhtInit(dht_pin, DHT21, 6);
+    unsigned char* dataP = dhtInit(dht_pin, DHT21, 6);
     dhtBegin();
 
     // Initialize.
@@ -552,18 +558,20 @@ int main(void)
     device_manager_init(true);
     gap_params_init();
     services_init();
-    advertising_init();
+    advertising_init(dataP);
     conn_params_init();
+    start_timers();
 
     // Start execution.
     err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
+    //err_code = timeslot_sd_init();
     // Enter main loop.
     for (;;)
     {
         power_manage();
-    	//nrf_gpio_pin_toggle(led_pin1);
-    	//nrf_delay_ms(1000);
+    	nrf_gpio_pin_toggle(led_pin1);
+    	nrf_delay_ms(1000);
     }
 }
 

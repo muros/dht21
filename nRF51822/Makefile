@@ -39,4 +39,8 @@ OBJS += pstorage.o dht.o dht_service.o timers.o main.o
 OBJS += system_nrf51.o softdevice_handler.o
 # include common make file
 
+# Test blinky
+#OBJS = timers.o nrf_delay.o pinky.o system_nrf51.o 
+
+
 include ./Makefile.common

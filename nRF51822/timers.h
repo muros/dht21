@@ -17,8 +17,20 @@ void create_timers();
 
 void start_timers();
 
+void start_timer_dht();
+
+void stop_timer_dht();
+
+void start_timer_ble();
+
+void stop_timer_ble();
+
 void stop_timers();
 
 void timer_dht_handler(void * p_context);
+
+void timer_ble_handler(void * p_context);
+
+void advertising_update(unsigned char *outData);
 
 #endif /* TIMERS_H_ */

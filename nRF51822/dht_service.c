@@ -3,6 +3,9 @@
 #include <string.h>
 #include "dht_service.h"
 #include "app_error.h"
+#include "nrf_gpio.h"
+
+unsigned char readData[5];
 
 /**@brief Function for handling BLE GATTS EVENTS
  *
@@ -93,7 +96,7 @@ static uint32_t dht_char_add(ble_os_t * p_dht_service) {
     // Configure the attribute metadata
     ble_gatts_attr_md_t attr_md;
     memset(&attr_md, 0, sizeof(attr_md));
-    attr_md.vloc = BLE_GATTS_VLOC_STACK;
+    attr_md.vloc = BLE_GATTS_VLOC_USER;
 
     // Set read/write security levels to our characteristic
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
@@ -106,10 +109,20 @@ static uint32_t dht_char_add(ble_os_t * p_dht_service) {
     attr_char_value.p_attr_md = &attr_md;
 
     // Set characteristic length in number of bytes
-    attr_char_value.max_len = 4;
-    attr_char_value.init_len = 4;
-    uint8_t value[4] = { 0x12, 0x34, 0x56, 0x88 };
-    attr_char_value.p_value = value;
+    attr_char_value.max_len = 5;
+    attr_char_value.init_len = 5;
+    uint8_t value[5] = { 0x12, 0x34, 0x56, 0x78, 0x9a };
+    readData[0] = value[0];
+    readData[1] = value[1];
+    readData[2] = value[2];
+    readData[3] = value[3];
+    readData[4] = value[4];
+    p_dht_service->data[0] = readData[0];
+    p_dht_service->data[1] = readData[1];
+    p_dht_service->data[2] = readData[2];
+    p_dht_service->data[3] = readData[3];
+    p_dht_service->data[4] = readData[4];
+    attr_char_value.p_value = p_dht_service->data;
 
     // Add our new characteristic to the service
     err_code = sd_ble_gatts_characteristic_add(p_dht_service->service_handle,
@@ -150,7 +163,7 @@ void dht_th_characteristic_update(ble_os_t *p_dht_service,
         int32_t *p_temp_value, int32_t *p_hmdt_value) {
 
     // Only update value if temp delta is more than 0.1 deg. C
-    if (abs(p_dht_service->prev_temp - *p_temp_value) > 1) {
+    //if (abs(p_dht_service->prev_temp - *p_temp_value) > 1) {
 
         p_dht_service->prev_temp = *p_temp_value;
         if (p_dht_service->conn_handle != BLE_CONN_HANDLE_INVALID) {
@@ -163,11 +176,43 @@ void dht_th_characteristic_update(ble_os_t *p_dht_service,
             hvx_params.type = BLE_GATT_HVX_NOTIFICATION;
             hvx_params.offset = 0;
             hvx_params.p_len = &len;
+            //*p_temp_value=63737; //F8F9
+            //*p_hmdt_value=41378; // A1A2
             int32_t temp_hmdt_combined = *p_temp_value << 16;
             temp_hmdt_combined |= *p_hmdt_value;
             hvx_params.p_data = (uint8_t*) &temp_hmdt_combined;
 
             sd_ble_gatts_hvx(p_dht_service->conn_handle, &hvx_params);
         }
-    }
+    //}
+}
+
+void dht_th_characteristic_update_raw(ble_os_t *p_dht_service,
+		unsigned char *data) {
+
+	p_dht_service->data[0] = data[0];
+	p_dht_service->data[1] = data[1];
+	p_dht_service->data[2] = data[2];
+	p_dht_service->data[3] = data[3];
+	p_dht_service->data[4] = data[4];
+
+	readData[0] = data[0];
+	readData[1] = data[1];
+	readData[2] = data[2];
+	readData[3] = data[3];
+	readData[4] = data[4];
+
+	if (p_dht_service->conn_handle != BLE_CONN_HANDLE_INVALID) {
+            uint16_t len = 5;
+            ble_gatts_hvx_params_t hvx_params;
+            memset(&hvx_params, 0, sizeof(hvx_params));
+
+            hvx_params.handle = p_dht_service->char_handles.value_handle;
+            hvx_params.type = BLE_GATT_HVX_INDICATION;
+            hvx_params.offset = 0;
+            hvx_params.p_len = &len;
+            hvx_params.p_data = data;
+
+            sd_ble_gatts_hvx(p_dht_service->conn_handle, &hvx_params);
+        }
 }

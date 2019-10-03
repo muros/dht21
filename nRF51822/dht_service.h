@@ -31,6 +31,8 @@ typedef struct
     ble_gatts_char_handles_t    char_handles;
     int prev_temp;
     int prev_hmdt;
+    unsigned char data[5];
+
 }ble_os_t;
 
 /**@brief Function for handling BLE Stack events related to our service and characteristic.
@@ -59,5 +61,7 @@ void dht_service_init(ble_os_t * p_our_service);
  * @param[in] p_hmdt_value pointer to new measured humidity value
  */
 void dht_th_characteristic_update(ble_os_t *p_dht_service, int32_t *p_temp_value, int32_t *p_hmdt_value);
+
+void dht_th_characteristic_update_raw(ble_os_t *p_dht_service, unsigned char *data);
 
 #endif /* DHT_SERVICE_H_ */
